@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>View Snippet</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #cccccc;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: #ffffff;
+        }
+        .container {
+            width: 80%;
+            margin: 0 auto;
+        }
+
+        .snippet-container {
+            position: relative;
+            background-color: #333333;
+            border: 1px solid #666666;
+            margin-top: 20px;
+            padding: 10px;
+        }
+
+        .snippet-text {
+            white-space: pre-wrap;
+            margin: 0;
+        }
+
+        .clipboard-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background-color: transparent;
+            color: #ffffff;
+            border: none;
+            cursor: pointer;
+        }
+        .clipboard-btn:hover {
+            color: #ff6600;
+        }
+
+        a {
+            color: #ff6600;
+            text-decoration: none;
+        }
+        a:hover {
+            color: #0066cc;
+        }
+
+        .btn-back-home, .btn-delete {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 8px 16px;
+            background-color: #ff6600;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-back-home:hover, .btn-delete:hover {
+            background-color: #0066cc;
+        }
+        .btn-delete {
+            background-color: #cc0000;
+        }
+        .btn-delete:hover {
+            background-color: #990000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{{.Title}}</h1>
+
+        <div class="snippet-container">
+            <button id="copyBtn" class="clipboard-btn" title="Copy to clipboard">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor"
+                     viewBox="0 0 16 16" style="vertical-align:middle;">
+                  <path d="M10 1.5a.5.5 0 0 1 .5.5v1h.5A1.5 1.5 0 0 1 12.5 4v9A1.5 1.5 0 0 1 11 14.5H5A1.5 1.5 0 0 1 3.5 13V4A1.5 1.5 0 0 1 5 2.5h.5v-1a.5.5 0 0 1 .5-.5h4ZM6 2v1h4V2H6Z"/>
+                </svg>
+            </button>
+
+            <pre id="snippetText" class="snippet-text">{{.Text}}</pre>
+        </div>
+
+        <h2>Share this link:</h2>
+        <p>
+            <a href="{{.Link}}">{{.Link}}</a><br />
+            (You can copy the link above and share it with others.)
+        </p>
+
+        <a href="/" class="btn-back-home">Back to Home</a>
+
+        <form action="/delete/{{.ID}}" method="POST" style="display: inline;">
+            <button class="btn-delete" type="submit"
+                    onclick="return confirm('Are you sure you want to delete this snippet?');">
+                Delete Snippet
+            </button>
+        </form>
+    </div>
+
+    <script>
+        const copyBtn = document.getElementById('copyBtn');
+        const snippetText = document.getElementById('snippetText');
+
+        copyBtn.addEventListener('click', function() {
+            const textToCopy = snippetText.textContent;
+
+            navigator.clipboard.writeText(textToCopy)
+                .then(() => {
+                    alert('Snippet copied to clipboard!');
+                })
+                .catch(err => {
+                    console.error('Failed to copy text: ', err);
+                });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Pasty McUploadFace - Home</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #cccccc;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        h1, h2 {
+            color: #ffffff;
+        }
+        a {
+            color: #ff6600;
+            text-decoration: none;
+        }
+        a:hover {
+            color: #0066cc;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 20px;
+            width: 80%;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .grid-item {
+            border: 1px solid #666666;
+            padding: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #333333;
+        }
+        th, td {
+            border: 1px solid #666666;
+            padding: 8px;
+            color: #ffffff;
+        }
+        th {
+            background-color: #2c2c2c;
+        }
+        label {
+            font-weight: bold;
+        }
+        input[type="text"],
+        textarea {
+            width: 100%;
+            background-color: #333333;
+            color: #ffffff;
+            border: 1px solid #666666;
+            margin-bottom: 10px;
+            padding: 5px;
+        }
+        input[type="submit"] {
+            background-color: #ff6600;
+            color: #ffffff;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        input[type="submit"]:hover:enabled {
+            background-color: #0066cc;
+        }
+        input[type="submit"]:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="padding: 20px;">Pasty McUploadFace</h1>
+
+    <div class="grid-container">
+
+        <div class="grid-item">
+            <h2>Create New Snippet</h2>
+            <form action="/save" method="POST">
+                <label for="pasteTitle">Title (optional):</label><br />
+                <input type="text" id="pasteTitle" name="title" /><br />
+
+                <label for="pasteText">Paste your text:</label><br />
+                <textarea id="pasteText" name="text" rows="10"></textarea><br /><br />
+
+                <input type="checkbox" id="burn" name="burn" value="true" />
+                <label for="burn">Burn after reading</label><br /><br />
+
+                <input id="submitBtn" type="submit" value="Save Snippet" disabled />
+            </form>
+        </div>
+
+        <div class="grid-item">
+            <h2>Existing Snippets</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Snippet (Truncated)</th>
+                        <th>Link</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {{range .Snippets}}
+                    <tr>
+                        <td>{{.Title}}</td>
+                        <td>{{.TruncatedText}}</td>
+                        <td><a href="/display/{{.ID}}">View</a></td>
+                    </tr>
+                {{else}}
+                    <tr>
+                        <td colspan="3">No snippets yet.</td>
+                    </tr>
+                {{end}}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="grid-item">
+            <h2>File Upload</h2>
+            <form action="/upload" method="POST" enctype="multipart/form-data">
+                <label for="fileField">Choose a file:</label><br />
+                <input type="file" id="fileField" name="file" /><br /><br />
+                <input type="submit" value="Upload File" />
+            </form>
+        </div>
+
+        <div class="grid-item">
+            <h2>Uploaded Files</h2>
+            <ul>
+                {{range .Files}}
+                <li>
+                    {{.Name}}
+                    &mdash;
+                    <a href="/download/{{.ID}}">Download</a> |
+                    <a href="/file/{{.ID}}">QR Code</a>
+                </li>
+                {{else}}
+                <li>No files uploaded yet.</li>
+                {{end}}
+            </ul>
+        </div>
+
+    </div>
+
+    <script>
+        const pasteText = document.getElementById('pasteText');
+        const submitBtn = document.getElementById('submitBtn');
+
+        pasteText.addEventListener('input', function() {
+            submitBtn.disabled = (pasteText.value.trim().length === 0);
+        });
+    </script>
+</body>
+</html>
