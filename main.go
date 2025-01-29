@@ -1,8 +1,11 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
@@ -31,6 +34,8 @@ var (
 	tmplDisplay     *template.Template
 	tmplDisplayFile *template.Template
 )
+
+var config Config
 
 // Data structures for templates
 type DisplayData struct {
@@ -68,7 +73,83 @@ func randomString(n int) string {
 	return string(b)
 }
 
+func buildTLSConfig(cfg Config) (*tls.Config, error) {
+	// var pemBlocks []*pem.Block
+	// var v *pem.Block
+	// var pkey []byte
+
+	// for {
+	// 	v, b = pem.Decode(b)
+	// 	if v == nil {
+	// 		break
+	// 	}
+	// 	if v.Type == "RSA PRIVATE KEY" {
+	// 		if x509.IsEncryptedPEMBlock(v) {
+	// 			pkey, _ = x509.DecryptPEMBlock(v, []byte("xxxxxxxxx"))
+	// 			pkey = pem.EncodeToMemory(&pem.Block{
+	// 				Type:  v.Type,
+	// 				Bytes: pkey,
+	// 			})
+	// 		} else {
+	// 			pkey = pem.EncodeToMemory(v)
+	// 		}
+	// 	} else {
+	// 		pemBlocks = append(pemBlocks, v)
+	// 	}
+	// }
+	// c, _ := tls.X509KeyPair(pem.EncodeToMemory(pemBlocks[0]), pkey)
+
+	// Base TLS config
+	tlsConfig := &tls.Config{}
+
+	if cfg.AuthEnabled {
+		// mTLS scenario
+		// 1) Load the CA certificate(s) used to trust client certs
+		caCert, err := ioutil.ReadFile("ca_cert.pem")
+		if err != nil {
+			return nil, fmt.Errorf("failed to read CA cert file: %v", err)
+		}
+		caPool := x509.NewCertPool()
+		if !caPool.AppendCertsFromPEM(caCert) {
+			return nil, fmt.Errorf("failed to append CA cert")
+		}
+
+		// 2) Require client certificate
+		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+		tlsConfig.ClientCAs = caPool
+
+		// 3) Provide a custom verification function if we want to check the username in the client cert
+		tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			if len(verifiedChains) < 1 || len(verifiedChains[0]) < 1 {
+				return fmt.Errorf("no verified certificate chain")
+			}
+			cert := verifiedChains[0][0]
+
+			// Check the Common Name. (Or check Subject Alternative Name if your environment uses that.)
+			cn := cert.Subject.CommonName
+			if cn != cfg.Username {
+				// Log the attempt
+				log.Printf("Rejected client cert from CN=%s (expected CN=%s)", cn, cfg.Username)
+				return fmt.Errorf("client cert CN does not match allowed username")
+			}
+
+			// Success
+			log.Printf("Accepted client cert from CN=%s", cn)
+			return nil
+		}
+	}
+
+	return tlsConfig, nil
+}
+
 func main() {
+
+	var err error
+	config, err = LoadConfig("config.json")
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
 	loadSnippetsFromFile("snippets.json")
 
 	tmplIndex = parseTemplate("templates/index.html")
@@ -87,8 +168,43 @@ func main() {
 
 	setupGracefulShutdown()
 
-	fmt.Println("Server is running at http://localhost:8090/")
-	log.Fatal(http.ListenAndServe(":8090", r)) // TODO: hardcoded
+	// server startup logic
+	if !config.SSLEnabled {
+		// Plain HTTP
+		log.Printf("Starting HTTP server on :8090 (no SSL)")
+		if err := http.ListenAndServe(":8090", r); err != nil {
+			log.Fatalf("ListenAndServe error: %v", err)
+		}
+	} else {
+		// SSL is enabled
+		// if auth_enabled == false => normal TLS
+		// if auth_enabled == true  => mutual TLS
+
+		// Build a tls.Config
+		tlsCfg, err := buildTLSConfig(config)
+		if err != nil {
+			log.Fatalf("Error building TLS config: %v", err)
+		}
+
+		server := &http.Server{
+			Addr:      ":8090",
+			Handler:   r,
+			TLSConfig: tlsCfg,
+		}
+		log.Printf("Starting HTTPS server on :8090 (SSL=%v, auth=%v)", config.SSLEnabled, config.AuthEnabled)
+		if config.AuthEnabled {
+			log.Println("mTLS is enforced; client must present certificate with CN=", config.Username)
+		}
+
+		// Provide server certificates (cert.pem, key.pem) if normal TLS or mTLS
+		// The TLS handshake will enforce client cert if mTLS is set up.
+		if err := server.ListenAndServeTLS("server_cert.pem", "server_key.pem"); err != nil {
+			log.Fatalf("ListenAndServeTLS error: %v", err)
+		}
+	}
+
+	// fmt.Println("Server is running at http://localhost:8090/")
+	// log.Fatal(http.ListenAndServe(":8090", r)) // TODO: hardcoded
 }
 
 // setupGracefulShutdown sets up a handler for OS signals (Ctrl+C, SIGTERM)
