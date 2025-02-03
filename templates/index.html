@@ -2,6 +2,8 @@
 <html>
 <head>
     <meta charset="utf-8" />
+    <!-- Ensures the page scales correctly on mobile devices -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pasty McUploadFace - Home</title>
     <style>
         body {
@@ -24,14 +26,13 @@
 
         .grid-container {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: auto auto;
-            gap: 20px;
-            width: 80%;
+            grid-template-columns: 1fr 1fr;  /* 2 columns on larger screens */
+            grid-template-rows: auto auto;   /* 2 rows */
+            gap: 20px;                       /* space between cells */
+            width: 90%;                     /* some horizontal padding */
             margin: 0 auto;
             padding: 20px;
         }
-
         .grid-item {
             border: 1px solid #666666;
             padding: 20px;
@@ -50,6 +51,7 @@
         th {
             background-color: #2c2c2c;
         }
+
         label {
             font-weight: bold;
         }
@@ -76,13 +78,25 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+
+        /*
+           MEDIA QUERY: On screens 768px wide or smaller, collapse to 1 column.
+           Adjust the breakpoint as needed (e.g., 600px, 992px, etc.).
+        */
+        @media (max-width: 768px) {
+            .grid-container {
+                grid-template-columns: 1fr;    /* 1 column */
+                grid-template-rows: auto auto auto auto;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1 style="padding: 20px;">Pasty McUploadFace</h1>
+    <h1 style="padding: 20px;">Pastebin</h1>
 
     <div class="grid-container">
 
+        <!-- Top-left: Snippet Creation -->
         <div class="grid-item">
             <h2>Create New Snippet</h2>
             <form action="/save" method="POST">
@@ -99,6 +113,7 @@
             </form>
         </div>
 
+        <!-- Top-right: Snippet Listing -->
         <div class="grid-item">
             <h2>Existing Snippets</h2>
             <table>
@@ -125,6 +140,7 @@
             </table>
         </div>
 
+        <!-- Bottom-left: File Upload Form -->
         <div class="grid-item">
             <h2>File Upload</h2>
             <form action="/upload" method="POST" enctype="multipart/form-data">
@@ -134,6 +150,7 @@
             </form>
         </div>
 
+        <!-- Bottom-right: File Listing -->
         <div class="grid-item">
             <h2>Uploaded Files</h2>
             <ul>
@@ -150,7 +167,7 @@
             </ul>
         </div>
 
-    </div>
+    </div> <!-- end .grid-container -->
 
     <script>
         const pasteText = document.getElementById('pasteText');
