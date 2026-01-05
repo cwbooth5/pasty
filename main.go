@@ -175,17 +175,18 @@ func parseTemplate(path string) *template.Template {
 	return tmpl
 }
 
-// generateHomeQRCode generates a QR code for the home page URL
-func generateHomeQRCode(r *http.Request) string {
-	// Build absolute URL to home page
+// generatePageQRCode generates a QR code for the current page URL
+func generatePageQRCode(r *http.Request) string {
+	// Build absolute URL for current page
 	scheme := "http"
 	if r.TLS != nil {
 		scheme = "https"
 	}
-	homeURL := fmt.Sprintf("%s://%s/", scheme, r.Host)
+	// Use the full request URI to get the current page path
+	pageURL := fmt.Sprintf("%s://%s%s", scheme, r.Host, r.RequestURI)
 
 	// Generate QR code
-	png, err := qrcode.Encode(homeURL, qrcode.Medium, 256)
+	png, err := qrcode.Encode(pageURL, qrcode.Medium, 256)
 	if err != nil {
 		log.Printf("QR code generation error: %v", err)
 		return ""
@@ -217,7 +218,7 @@ func serveIndex(w http.ResponseWriter, r *http.Request) {
 	data := IndexData{
 		Snippets:   snippets,
 		Files:      fileEntries,
-		HomeQRCode: generateHomeQRCode(r),
+		HomeQRCode: generatePageQRCode(r),
 	}
 
 	if err := tmplIndex.Execute(w, data); err != nil {
@@ -267,7 +268,7 @@ func displaySnippet(w http.ResponseWriter, r *http.Request) {
 		Title:      snippet.Title,
 		Text:       snippet.Text,
 		Link:       "/display/" + url,
-		HomeQRCode: generateHomeQRCode(r),
+		HomeQRCode: generatePageQRCode(r),
 	}
 
 	if err := tmplDisplay.Execute(w, data); err != nil {

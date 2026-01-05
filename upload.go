@@ -274,8 +274,9 @@ func viewFileHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Generate home page QR code
-	homeQRCode, _ := generateQRCodeBase64(fmt.Sprintf("%s://%s/", scheme(r), r.Host))
+	// Generate QR code for current page
+	currentPageURL := fmt.Sprintf("%s://%s%s", scheme(r), r.Host, r.RequestURI)
+	homeQRCode, _ := generateQRCodeBase64(currentPageURL)
 
 	data := struct {
 		FileName    string
@@ -423,8 +424,9 @@ func displayFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate home page QR code
-	homeQRCode, _ := generateQRCodeBase64(fmt.Sprintf("%s://%s/", scheme(r), r.Host))
+	// Generate QR code for current page
+	currentPageURL := fmt.Sprintf("%s://%s%s", scheme(r), r.Host, r.RequestURI)
+	homeQRCode, _ := generateQRCodeBase64(currentPageURL)
 
 	data := struct {
 		FileName    string
