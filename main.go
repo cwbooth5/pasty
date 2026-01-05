@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"text/template"
 
 	"github.com/gorilla/mux"
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 // Snippet holds the title and text of a paste
@@ -36,10 +38,11 @@ var (
 
 // Data structures for templates
 type DisplayData struct {
-	ID    string
-	Title string
-	Text  string
-	Link  string
+	ID         string
+	Title      string
+	Text       string
+	Link       string
+	HomeQRCode string
 }
 
 type FileEntry struct {
@@ -47,8 +50,9 @@ type FileEntry struct {
 	Name string
 }
 type IndexData struct {
-	Snippets []SnippetInfo
-	Files    []FileEntry
+	Snippets   []SnippetInfo
+	Files      []FileEntry
+	HomeQRCode string
 }
 
 // For the index page table (snippet list)
@@ -171,6 +175,24 @@ func parseTemplate(path string) *template.Template {
 	return tmpl
 }
 
+// generateHomeQRCode generates a QR code for the home page URL
+func generateHomeQRCode(r *http.Request) string {
+	// Build absolute URL to home page
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	homeURL := fmt.Sprintf("%s://%s/", scheme, r.Host)
+
+	// Generate QR code
+	png, err := qrcode.Encode(homeURL, qrcode.Medium, 256)
+	if err != nil {
+		log.Printf("QR code generation error: %v", err)
+		return ""
+	}
+	return base64.StdEncoding.EncodeToString(png)
+}
+
 func serveIndex(w http.ResponseWriter, r *http.Request) {
 	snippets := getAllSnippetsDescending()
 
@@ -193,8 +215,9 @@ func serveIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := IndexData{
-		Snippets: snippets,
-		Files:    fileEntries,
+		Snippets:   snippets,
+		Files:      fileEntries,
+		HomeQRCode: generateHomeQRCode(r),
 	}
 
 	if err := tmplIndex.Execute(w, data); err != nil {
@@ -240,10 +263,11 @@ func displaySnippet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := DisplayData{
-		ID:    url,
-		Title: snippet.Title,
-		Text:  snippet.Text,
-		Link:  "/display/" + url,
+		ID:         url,
+		Title:      snippet.Title,
+		Text:       snippet.Text,
+		Link:       "/display/" + url,
+		HomeQRCode: generateHomeQRCode(r),
 	}
 
 	if err := tmplDisplay.Execute(w, data); err != nil {

@@ -92,7 +92,15 @@
     </style>
 </head>
 <body>
-    <h1 style="padding: 20px;">Pastebin</h1>
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid #666666;">
+        <h1 style="margin: 0;">Pastebin</h1>
+        {{if .HomeQRCode}}
+            <div style="text-align: center;">
+                <p style="margin: 0 0 8px 0; font-size: 12px; color: #999999;">Quick Access</p>
+                <img src="data:image/png;base64,{{.HomeQRCode}}" alt="Home QR Code" style="width: 120px; height: 120px; border: 1px solid #666666; padding: 4px;">
+            </div>
+        {{end}}
+    </div>
 
     <div class="grid-container">
 
@@ -146,7 +154,7 @@
             <form action="/upload" method="POST" enctype="multipart/form-data">
                 <label for="fileField">Choose a file:</label><br />
                 <input type="file" id="fileField" name="file" /><br /><br />
-                <input type="submit" value="Upload File" />
+                <input id="uploadBtn" type="submit" value="Upload File" disabled />
             </form>
         </div>
 
@@ -191,6 +199,14 @@
 
         pasteText.addEventListener('input', function() {
             submitBtn.disabled = (pasteText.value.trim().length === 0);
+        });
+
+        // File upload form validation
+        const fileField = document.getElementById('fileField');
+        const uploadBtn = document.getElementById('uploadBtn');
+
+        fileField.addEventListener('change', function() {
+            uploadBtn.disabled = (fileField.files.length === 0);
         });
 
         // File table search functionality

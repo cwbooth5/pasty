@@ -274,6 +274,9 @@ func viewFileHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Generate home page QR code
+	homeQRCode, _ := generateQRCodeBase64(fmt.Sprintf("%s://%s/", scheme(r), r.Host))
+
 	data := struct {
 		FileName    string
 		StreamURL   string
@@ -285,6 +288,7 @@ func viewFileHandler(w http.ResponseWriter, r *http.Request) {
 		IsPDF       bool
 		IsText      bool
 		TextContent string
+		HomeQRCode  string
 	}{
 		FileName:    filename,
 		StreamURL:   fmt.Sprintf("/stream/%s", fileID),
@@ -296,6 +300,7 @@ func viewFileHandler(w http.ResponseWriter, r *http.Request) {
 		IsPDF:       isPDFFile(filename),
 		IsText:      isTextFile(filename),
 		TextContent: textContent,
+		HomeQRCode:  homeQRCode,
 	}
 
 	if err := tmplView.Execute(w, data); err != nil {
@@ -418,16 +423,21 @@ func displayFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Generate home page QR code
+	homeQRCode, _ := generateQRCodeBase64(fmt.Sprintf("%s://%s/", scheme(r), r.Host))
+
 	data := struct {
 		FileName    string
 		ViewURL     string
 		DownloadURL string
 		QRCodeData  string
+		HomeQRCode  string
 	}{
 		FileName:    filename,
 		ViewURL:     fmt.Sprintf("/view/%s", fileID),
 		DownloadURL: fmt.Sprintf("/download/%s", fileID),
 		QRCodeData:  base64QR,
+		HomeQRCode:  homeQRCode,
 	}
 
 	if err := tmplDisplayFile.Execute(w, data); err != nil {
