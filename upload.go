@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -83,7 +85,9 @@ func serveFile(w http.ResponseWriter, r *http.Request, fileID string, inline boo
 	fullPath := filepath.Join("uploads", fileID)
 
 	// Check if file exists
-	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+	stat, err := os.Stat(fullPath)
+	if os.IsNotExist(err) {
+		log.Printf("File not found: %s", fullPath)
 		http.NotFound(w, r)
 		return
 	}
@@ -112,10 +116,101 @@ func serveFile(w http.ResponseWriter, r *http.Request, fileID string, inline boo
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 	}
 
+	// Critical for iOS: set Content-Length header
+	fileSize := stat.Size()
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", fileSize))
+
+	// Set cache control headers for media files
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+
+	// Handle HTTP Range requests (HTTP 206 Partial Content)
+	// This is important for iOS to support seeking and streaming
+	rangeHeader := r.Header.Get("Range")
+	if rangeHeader != "" {
+		// Parse Range header (e.g., "bytes=0-1023" or "bytes=1024-")
+		start, end, err := parseRange(rangeHeader, fileSize)
+		if err == nil {
+			// Seek to start position
+			if _, err := f.Seek(start, 0); err == nil {
+				w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, fileSize))
+				w.Header().Set("Content-Length", fmt.Sprintf("%d", end-start+1))
+				w.Header().Set("Accept-Ranges", "bytes")
+				w.WriteHeader(http.StatusPartialContent)
+				log.Printf("Serving range request for %s: bytes %d-%d/%d", filename, start, end, fileSize)
+				io.CopyN(w, f, end-start+1)
+				return
+			}
+		}
+	}
+
+	// Set Accept-Ranges header to indicate we support range requests
+	w.Header().Set("Accept-Ranges", "bytes")
+
+	log.Printf("Serving file: %s (size: %d bytes, inline: %v)", filename, fileSize, inline)
+
 	_, err = io.Copy(w, f)
 	if err != nil {
 		log.Printf("File copy error: %v", err)
 	}
+}
+
+// parseRange parses an HTTP Range header and returns start and end byte positions
+func parseRange(rangeHeader string, fileSize int64) (int64, int64, error) {
+	// Simple parser for "bytes=start-end" format
+	if len(rangeHeader) < 6 || rangeHeader[:6] != "bytes=" {
+		return 0, 0, fmt.Errorf("invalid range format")
+	}
+
+	rangeSpec := rangeHeader[6:]
+	parts := strings.Split(rangeSpec, "-")
+	if len(parts) != 2 {
+		return 0, 0, fmt.Errorf("invalid range format")
+	}
+
+	var start, end int64
+	var err error
+
+	if parts[0] == "" {
+		// Suffix range: "-500" means last 500 bytes
+		if parts[1] == "" {
+			return 0, 0, fmt.Errorf("invalid range format")
+		}
+		suffixLength, err := strconv.ParseInt(parts[1], 10, 64)
+		if err != nil || suffixLength < 0 {
+			return 0, 0, fmt.Errorf("invalid suffix length")
+		}
+		start = fileSize - suffixLength
+		if start < 0 {
+			start = 0
+		}
+		end = fileSize - 1
+	} else {
+		// Normal range: "100-200"
+		start, err = strconv.ParseInt(parts[0], 10, 64)
+		if err != nil || start < 0 {
+			return 0, 0, fmt.Errorf("invalid start position")
+		}
+
+		if parts[1] == "" {
+			// Open-ended range: "100-" means from 100 to end
+			end = fileSize - 1
+		} else {
+			end, err = strconv.ParseInt(parts[1], 10, 64)
+			if err != nil || end < start {
+				return 0, 0, fmt.Errorf("invalid end position")
+			}
+		}
+	}
+
+	if start >= fileSize {
+		return 0, 0, fmt.Errorf("range start beyond file size")
+	}
+
+	if end >= fileSize {
+		end = fileSize - 1
+	}
+
+	return start, end, nil
 }
 
 // isVideoFile checks if the file is a video based on extension
