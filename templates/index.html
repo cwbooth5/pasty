@@ -153,29 +153,107 @@
         <!-- Bottom-right: File Listing -->
         <div class="grid-item">
             <h2>Uploaded Files</h2>
-            <ul>
-                {{range .Files}}
-                <li>
-                    {{.Name}}
-                    &mdash;
-                    <a href="/download/{{.ID}}">Download</a> |
-                    <a href="/file/{{.ID}}">QR Code</a>
-                </li>
-                {{else}}
-                <li>No files uploaded yet.</li>
-                {{end}}
-            </ul>
+            <input type="text" id="fileSearch" placeholder="Search files..." style="margin-bottom: 10px;" />
+            <div style="max-height: 400px; overflow-y: auto; border: 1px solid #666666;">
+                <table id="filesTable">
+                    <thead style="position: sticky; top: 0; background-color: #2c2c2c;">
+                        <tr>
+                            <th style="cursor: pointer;" onclick="sortTable(0)">Filename ▼</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {{range .Files}}
+                        <tr>
+                            <td>{{.Name}}</td>
+                            <td>
+                                <a href="/view/{{.ID}}">View</a> |
+                                <a href="/download/{{.ID}}">Download</a> |
+                                <a href="/file/{{.ID}}">QR Code</a>
+                            </td>
+                        </tr>
+                    {{else}}
+                        <tr>
+                            <td colspan="2">No files uploaded yet.</td>
+                        </tr>
+                    {{end}}
+                    </tbody>
+                </table>
+            </div>
         </div>
 
     </div> <!-- end .grid-container -->
 
     <script>
+        // Snippet form validation
         const pasteText = document.getElementById('pasteText');
         const submitBtn = document.getElementById('submitBtn');
 
         pasteText.addEventListener('input', function() {
             submitBtn.disabled = (pasteText.value.trim().length === 0);
         });
+
+        // File table search functionality
+        const fileSearch = document.getElementById('fileSearch');
+        const filesTable = document.getElementById('filesTable');
+
+        if (fileSearch && filesTable) {
+            fileSearch.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const rows = filesTable.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+
+                for (let i = 0; i < rows.length; i++) {
+                    const filenameCell = rows[i].getElementsByTagName('td')[0];
+                    if (filenameCell) {
+                        const filename = filenameCell.textContent || filenameCell.innerText;
+                        if (filename.toLowerCase().indexOf(searchTerm) > -1) {
+                            rows[i].style.display = '';
+                        } else {
+                            rows[i].style.display = 'none';
+                        }
+                    }
+                }
+            });
+        }
+
+        // Table sorting functionality
+        let sortAscending = true;
+        function sortTable(columnIndex) {
+            const table = document.getElementById('filesTable');
+            const tbody = table.getElementsByTagName('tbody')[0];
+            const rows = Array.from(tbody.getElementsByTagName('tr'));
+
+            // Don't sort if only "No files" message
+            if (rows.length === 1 && rows[0].getElementsByTagName('td').length === 1) {
+                return;
+            }
+
+            rows.sort(function(a, b) {
+                const cellA = a.getElementsByTagName('td')[columnIndex];
+                const cellB = b.getElementsByTagName('td')[columnIndex];
+
+                if (!cellA || !cellB) return 0;
+
+                const textA = (cellA.textContent || cellA.innerText).toLowerCase();
+                const textB = (cellB.textContent || cellB.innerText).toLowerCase();
+
+                if (sortAscending) {
+                    return textA.localeCompare(textB);
+                } else {
+                    return textB.localeCompare(textA);
+                }
+            });
+
+            // Re-append sorted rows
+            rows.forEach(row => tbody.appendChild(row));
+
+            // Toggle sort direction
+            sortAscending = !sortAscending;
+
+            // Update header indicator
+            const header = table.getElementsByTagName('th')[columnIndex];
+            header.innerHTML = sortAscending ? 'Filename ▼' : 'Filename ▲';
+        }
     </script>
 </body>
 </html>

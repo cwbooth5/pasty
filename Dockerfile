@@ -1,4 +1,4 @@
-FROM golang:1.23.5 AS build
+FROM golang:1.25.5 AS build
 
 WORKDIR /app
 COPY go.mod go.sum ./
@@ -13,5 +13,5 @@ WORKDIR /app
 COPY --from=build /app/pasty /app/pasty
 COPY templates/ templates/
 RUN mkdir uploads
-EXPOSE 8090
-CMD ["/app/pasty"]
+EXPOSE 3015
+CMD ["/app/pasty", "-host", "0.0.0.0", "-port", "3015"]

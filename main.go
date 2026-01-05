@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
@@ -30,6 +31,7 @@ var (
 	tmplIndex       *template.Template
 	tmplDisplay     *template.Template
 	tmplDisplayFile *template.Template
+	tmplView        *template.Template
 )
 
 // Data structures for templates
@@ -69,11 +71,17 @@ func randomString(n int) string {
 }
 
 func main() {
+	// Parse command-line flags
+	host := flag.String("host", "localhost", "Host to listen on")
+	port := flag.String("port", "3015", "Port to listen on")
+	flag.Parse()
+
 	loadSnippetsFromFile("snippets.json")
 
 	tmplIndex = parseTemplate("templates/index.html")
 	tmplDisplay = parseTemplate("templates/display.html")
 	tmplDisplayFile = parseTemplate("templates/display_file.html")
+	tmplView = parseTemplate("templates/view.html")
 
 	r := mux.NewRouter()
 	r.HandleFunc("/", serveIndex).Methods("GET")
@@ -83,12 +91,15 @@ func main() {
 
 	r.HandleFunc("/upload", uploadFileHandler).Methods("POST")
 	r.HandleFunc("/file/{id}", displayFileHandler).Methods("GET")
+	r.HandleFunc("/view/{id}", viewFileHandler).Methods("GET")
+	r.HandleFunc("/stream/{id}", streamFileHandler).Methods("GET")
 	r.HandleFunc("/download/{id}", downloadFileHandler).Methods("GET")
 
 	setupGracefulShutdown()
 
-	fmt.Println("Server is running at http://localhost:8090/")
-	log.Fatal(http.ListenAndServe(":8090", r)) // TODO: hardcoded
+	addr := fmt.Sprintf("%s:%s", *host, *port)
+	fmt.Printf("Server is running at http://%s/\n", addr)
+	log.Fatal(http.ListenAndServe(addr, r))
 }
 
 // setupGracefulShutdown sets up a handler for OS signals (Ctrl+C, SIGTERM)
@@ -270,26 +281,34 @@ func generateURL() string {
 	}
 }
 
-func getAllSnippetsDescending() []SnippetInfo {
+// truncateText returns the text truncated to maxLen with "..." appended if needed
+func truncateText(text string, maxLen int) string {
+	if len(text) > maxLen {
+		return text[:maxLen] + "..."
+	}
+	return text
+}
+
+// buildSnippetsList converts a snippets map to a list of SnippetInfo, with truncated text
+func buildSnippetsList(snippetsMap map[string]Snippet, maxResults int) []SnippetInfo {
 	var results []SnippetInfo
 
-	for idStr, snippet := range snippets {
-		truncated := snippet.Text
-		if len(truncated) > 10 {
-			truncated = truncated[:10] + "..."
-		}
-
+	for idStr, snippet := range snippetsMap {
 		results = append(results, SnippetInfo{
 			ID:            idStr,
 			Title:         snippet.Title,
-			TruncatedText: truncated,
+			TruncatedText: truncateText(snippet.Text, 10),
 		})
 	}
 
-	// Return up to 10
-	if len(results) > 10 {
-		results = results[:10]
+	// Return up to maxResults
+	if maxResults > 0 && len(results) > maxResults {
+		results = results[:maxResults]
 	}
 
 	return results
+}
+
+func getAllSnippetsDescending() []SnippetInfo {
+	return buildSnippetsList(snippets, 10)
 }
