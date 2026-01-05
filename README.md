@@ -13,17 +13,57 @@ stuff onto phones by scanning the QR codes.
 
 # Building Container and Running
 
-To build the docker container, just do this
+## Build the Docker Image
 
 ```
 docker build -t pasty .
 ```
 
-The container's going to have the app running on TCP port 8090 inside the container and you can map
-that internal port to whatever you want externally when you run the container.
+The container runs the app on TCP port 3015 inside the container.
+
+## Running with Data Persistence
+
+To persist both snippets and uploaded files between container restarts, use a Docker volume.
+
+First, create a named volume:
 
 ```
-docker run --rm -it -p 8090:9000 pasty
+docker volume create pasty-data
 ```
 
-If you don't want to run the container, just build the go binary and run it.
+Then run the container with the volume mounted to `/app` (the working directory):
+
+```
+docker run -d --name pasty -p 3015:3015 -v pasty-data:/app pasty
+```
+
+This will:
+- Keep the container running in the background (`-d`)
+- Map port 3015 inside the container to 3015 on your host
+- Mount the `pasty-data` volume to `/app`, persisting both `snippets.json` and the `uploads/` directory
+
+To stop and remove the container later:
+
+```
+docker stop pasty
+docker rm pasty
+```
+
+The `pasty-data` volume will remain with all your data.
+
+## Running without Persistence (Temporary)
+
+To run the container without persistence (data is lost when container stops):
+
+```
+docker run --rm -it -p 3015:3015 pasty
+```
+
+## Running Locally
+
+If you don't want to run the container, just build the go binary and run it:
+
+```
+go build -o pasty .
+./pasty -host localhost -port 3015
+```
