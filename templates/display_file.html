@@ -40,11 +40,18 @@
         <h1>File: {{.FileName}}</h1>
 
         <p>
+            <a href="{{.ViewURL}}" class="download-btn" style="background-color: #0066cc;">View/Play File</a>
             <a href="{{.DownloadURL}}" class="download-btn">Download File</a>
         </p>
 
+        <p style="color: #aaaaaa; font-size: 14px;">
+            <strong>View/Play:</strong> Open the file in your browser (works great for videos, PDFs, images)<br>
+            <strong>Download:</strong> Save the file to your device
+        </p>
+
         <div class="qr-code">
-            <h2>QR Code for Download</h2>
+            <h2>QR Code for Viewing</h2>
+            <p style="color: #aaaaaa;">Scan with your phone to view/play the file directly</p>
             <img src="data:image/png;base64,{{.QRCodeData}}" alt="QR Code" />
         </div>
 
