@@ -17,6 +17,14 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// Initialize global variables for tests
+func init() {
+	// Set uploadsDir to the current test directory
+	uploadsDir = "uploads"
+	tmplView = template.Must(template.ParseFiles("templates/view.html"))
+	tmplDisplayFile = template.Must(template.ParseFiles("templates/display_file.html"))
+}
+
 // Test getContentType function
 func TestGetContentType(t *testing.T) {
 	tests := []struct {
@@ -188,19 +196,18 @@ func TestBuildFileEntries(t *testing.T) {
 // Test uploadFileHandler
 func TestUploadFileHandler(t *testing.T) {
 	originalFiles := files
+	originalUploadsDir := uploadsDir
 	t.Cleanup(func() {
 		files = originalFiles
+		uploadsDir = originalUploadsDir
 	})
 
 	files = make(map[string]FileInfo)
 
 	// Create a temporary directory for uploads
 	tmpDir := t.TempDir()
-	originalWd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	t.Cleanup(func() {
-		os.Chdir(originalWd)
-	})
+	uploadsDir = filepath.Join(tmpDir, "uploads")
+	os.MkdirAll(uploadsDir, 0755)
 
 	// Create multipart form data
 	body := &bytes.Buffer{}
@@ -229,7 +236,7 @@ func TestUploadFileHandler(t *testing.T) {
 	}
 
 	// Verify file exists on disk
-	uploadedFiles, _ := os.ReadDir("uploads")
+	uploadedFiles, _ := os.ReadDir(uploadsDir)
 	if len(uploadedFiles) != 1 {
 		t.Errorf("Found %d files in uploads directory, want 1", len(uploadedFiles))
 	}
@@ -263,22 +270,20 @@ func TestUploadFileHandler_NoFile(t *testing.T) {
 // Test downloadFileHandler
 func TestDownloadFileHandler(t *testing.T) {
 	originalFiles := files
+	originalUploadsDir := uploadsDir
 	t.Cleanup(func() {
 		files = originalFiles
+		uploadsDir = originalUploadsDir
 	})
 
 	// Create a temporary directory and file
 	tmpDir := t.TempDir()
-	originalWd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	os.MkdirAll("uploads", 0755)
-	t.Cleanup(func() {
-		os.Chdir(originalWd)
-	})
+	uploadsDir = filepath.Join(tmpDir, "uploads")
+	os.MkdirAll(uploadsDir, 0755)
 
 	testContent := "test file content for download"
 	testFileName := "test-download.txt"
-	os.WriteFile(filepath.Join("uploads", testFileName), []byte(testContent), 0644)
+	os.WriteFile(filepath.Join(uploadsDir, testFileName), []byte(testContent), 0644)
 
 	// Test with file in map (has original filename)
 	files = map[string]FileInfo{
@@ -324,22 +329,20 @@ func TestDownloadFileHandler(t *testing.T) {
 // Test downloadFileHandler with file not in map (direct from filesystem)
 func TestDownloadFileHandler_DirectFromFilesystem(t *testing.T) {
 	originalFiles := files
+	originalUploadsDir := uploadsDir
 	t.Cleanup(func() {
 		files = originalFiles
+		uploadsDir = originalUploadsDir
 	})
 
 	// Create a temporary directory and file
 	tmpDir := t.TempDir()
-	originalWd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	os.MkdirAll("uploads", 0755)
-	t.Cleanup(func() {
-		os.Chdir(originalWd)
-	})
+	uploadsDir = filepath.Join(tmpDir, "uploads")
+	os.MkdirAll(uploadsDir, 0755)
 
 	testContent := "direct file content"
 	testFileName := "direct-file.txt"
-	os.WriteFile(filepath.Join("uploads", testFileName), []byte(testContent), 0644)
+	os.WriteFile(filepath.Join(uploadsDir, testFileName), []byte(testContent), 0644)
 
 	// Empty files map - file not tracked
 	files = make(map[string]FileInfo)
@@ -442,22 +445,20 @@ func TestFileTypeDetection(t *testing.T) {
 // Test streamFileHandler
 func TestStreamFileHandler(t *testing.T) {
 	originalFiles := files
+	originalUploadsDir := uploadsDir
 	t.Cleanup(func() {
 		files = originalFiles
+		uploadsDir = originalUploadsDir
 	})
 
 	// Create a temporary directory and file
 	tmpDir := t.TempDir()
-	originalWd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	os.MkdirAll("uploads", 0755)
-	t.Cleanup(func() {
-		os.Chdir(originalWd)
-	})
+	uploadsDir = filepath.Join(tmpDir, "uploads")
+	os.MkdirAll(uploadsDir, 0755)
 
 	testContent := "test video content"
 	testFileName := "test.mp4"
-	os.WriteFile(filepath.Join("uploads", testFileName), []byte(testContent), 0644)
+	os.WriteFile(filepath.Join(uploadsDir, testFileName), []byte(testContent), 0644)
 
 	files = map[string]FileInfo{
 		testFileName: {
@@ -499,22 +500,20 @@ func TestStreamFileHandler(t *testing.T) {
 // Test viewFileHandler (now renders HTML template)
 func TestViewFileHandler(t *testing.T) {
 	originalFiles := files
+	originalUploadsDir := uploadsDir
 	t.Cleanup(func() {
 		files = originalFiles
+		uploadsDir = originalUploadsDir
 	})
 
 	// Create a temporary directory and file
 	tmpDir := t.TempDir()
-	originalWd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	os.MkdirAll("uploads", 0755)
-	t.Cleanup(func() {
-		os.Chdir(originalWd)
-	})
+	uploadsDir = filepath.Join(tmpDir, "uploads")
+	os.MkdirAll(uploadsDir, 0755)
 
 	testContent := "test video content"
 	testFileName := "test.mp4"
-	os.WriteFile(filepath.Join("uploads", testFileName), []byte(testContent), 0644)
+	os.WriteFile(filepath.Join(uploadsDir, testFileName), []byte(testContent), 0644)
 
 	// Initialize template
 	if tmplView == nil {
@@ -539,35 +538,33 @@ func TestViewFileHandler(t *testing.T) {
 		t.Errorf("viewFileHandler() status = %d, want %d", w.Code, http.StatusOK)
 	}
 
-	// Check that response contains HTML with video indicator
+	// Check that response contains HTML with video player
 	body := w.Body.String()
-	if !strings.Contains(body, "Video=true") {
-		t.Errorf("Response should indicate IsVideo=true, got: %s", body)
+	if !strings.Contains(body, "<video") {
+		t.Errorf("Response should contain video element")
 	}
-	if !strings.Contains(body, "StreamURL=/stream/") {
-		t.Errorf("Response should contain StreamURL, got: %s", body)
+	if !strings.Contains(body, "src=\"/stream/test.mp4\"") {
+		t.Errorf("Response should contain stream URL in source element")
 	}
 }
 
 // Test displayFileHandler
 func TestDisplayFileHandler(t *testing.T) {
 	originalFiles := files
+	originalUploadsDir := uploadsDir
 	t.Cleanup(func() {
 		files = originalFiles
+		uploadsDir = originalUploadsDir
 	})
 
 	// Create a temporary directory and file
 	tmpDir := t.TempDir()
-	originalWd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	os.MkdirAll("uploads", 0755)
-	t.Cleanup(func() {
-		os.Chdir(originalWd)
-	})
+	uploadsDir = filepath.Join(tmpDir, "uploads")
+	os.MkdirAll(uploadsDir, 0755)
 
 	// Create a test file
 	testFileName := "testfile.txt"
-	os.WriteFile(filepath.Join("uploads", testFileName), []byte("test content"), 0644)
+	os.WriteFile(filepath.Join(uploadsDir, testFileName), []byte("test content"), 0644)
 
 	// Initialize template
 	if tmplDisplayFile == nil {
@@ -596,35 +593,33 @@ func TestDisplayFileHandler(t *testing.T) {
 	// Verify response contains file name and both URLs
 	body := w.Body.String()
 	if !strings.Contains(body, "example.txt") {
-		t.Errorf("Response should contain filename example.txt, got: %s", body)
+		t.Errorf("Response should contain filename example.txt")
 	}
-	if !strings.Contains(body, "ViewURL=/view/") {
-		t.Errorf("Response should contain ViewURL, got: %s", body)
+	if !strings.Contains(body, "/view/testfile.txt") {
+		t.Errorf("Response should contain view URL")
 	}
-	if !strings.Contains(body, "DownloadURL=/download/") {
-		t.Errorf("Response should contain DownloadURL, got: %s", body)
+	if !strings.Contains(body, "/download/testfile.txt") {
+		t.Errorf("Response should contain download URL")
 	}
 }
 
 // Test displayFileHandler with file not in map (direct from filesystem)
 func TestDisplayFileHandler_DirectFromFilesystem(t *testing.T) {
 	originalFiles := files
+	originalUploadsDir := uploadsDir
 	t.Cleanup(func() {
 		files = originalFiles
+		uploadsDir = originalUploadsDir
 	})
 
 	// Create a temporary directory and file
 	tmpDir := t.TempDir()
-	originalWd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	os.MkdirAll("uploads", 0755)
-	t.Cleanup(func() {
-		os.Chdir(originalWd)
-	})
+	uploadsDir = filepath.Join(tmpDir, "uploads")
+	os.MkdirAll(uploadsDir, 0755)
 
 	// Create a test file
 	testFileName := "direct-file.txt"
-	os.WriteFile(filepath.Join("uploads", testFileName), []byte("test content"), 0644)
+	os.WriteFile(filepath.Join(uploadsDir, testFileName), []byte("test content"), 0644)
 
 	// Initialize template
 	if tmplDisplayFile == nil {

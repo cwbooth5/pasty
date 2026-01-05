@@ -12,6 +12,6 @@ WORKDIR /app
 
 COPY --from=build /app/pasty /app/pasty
 COPY templates/ templates/
-RUN mkdir uploads
+RUN mkdir -p /app/data/uploads
 EXPOSE 3015
-CMD ["/app/pasty", "-host", "0.0.0.0", "-port", "3015"]
+CMD ["/app/pasty", "-host", "0.0.0.0", "-port", "3015", "-datadir", "/app/data"]

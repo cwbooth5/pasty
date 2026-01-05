@@ -23,7 +23,7 @@ The container runs the app on TCP port 3015 inside the container.
 
 ## Running with Data Persistence
 
-To persist both snippets and uploaded files between container restarts, use a Docker volume.
+To persist both snippets and uploaded files between container restarts, use a Docker volume mounted at `/app/data`.
 
 First, create a named volume:
 
@@ -31,16 +31,19 @@ First, create a named volume:
 docker volume create pasty-data
 ```
 
-Then run the container with the volume mounted to `/app` (the working directory):
+Then run the container with the volume mounted to `/app/data`:
 
 ```
-docker run -d --name pasty -p 3015:3015 -v pasty-data:/app pasty
+docker run -d --name pasty -p 3015:3015 -v pasty-data:/app/data pasty
 ```
 
-This will:
-- Keep the container running in the background (`-d`)
-- Map port 3015 inside the container to 3015 on your host
-- Mount the `pasty-data` volume to `/app`, persisting both `snippets.json` and the `uploads/` directory
+This setup:
+- Keeps the container running in the background (`-d`)
+- Maps port 3015 inside the container to 3015 on your host
+- Mounts the `pasty-data` volume to `/app/data`, persisting only `snippets.json` and the `uploads/` directory
+- Leaves the executable and templates in the container image, so you can update the app without losing data
+
+The volume only contains your data (not the application code), so you can safely rebuild and restart the container with a new version while keeping all your snippets and files.
 
 To stop and remove the container later:
 
@@ -49,7 +52,7 @@ docker stop pasty
 docker rm pasty
 ```
 
-The `pasty-data` volume will remain with all your data.
+The `pasty-data` volume will remain with all your data intact.
 
 ## Running without Persistence (Temporary)
 

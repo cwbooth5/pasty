@@ -82,7 +82,7 @@ func getContentType(filename string) string {
 func serveFile(w http.ResponseWriter, r *http.Request, fileID string, inline bool) {
 	// Clean the filename to prevent directory traversal attacks
 	fileID = filepath.Base(fileID)
-	fullPath := filepath.Join("uploads", fileID)
+	fullPath := filepath.Join(uploadsDir, fileID)
 
 	// Check if file exists
 	stat, err := os.Stat(fullPath)
@@ -249,7 +249,7 @@ func viewFileHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Clean the filename
 	fileID = filepath.Base(fileID)
-	fullPath := filepath.Join("uploads", fileID)
+	fullPath := filepath.Join(uploadsDir, fileID)
 
 	// Check if file exists
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
@@ -351,13 +351,13 @@ func uploadFileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Ensure uploads dir, used when run outside container
-	os.MkdirAll("uploads", 0755)
+	// Ensure uploads dir exists
+	os.MkdirAll(uploadsDir, 0755)
 
 	// Build a unique ID / filename for the stored file
 	// For example, <timestamp>-<originalname>
 	uniqueID := fmt.Sprintf("%d-%s", time.Now().UnixNano(), filepath.Base(handler.Filename))
-	fullPath := filepath.Join("uploads", uniqueID)
+	fullPath := filepath.Join(uploadsDir, uniqueID)
 
 	dst, err := os.Create(fullPath)
 	if err != nil {
@@ -399,7 +399,7 @@ func displayFileHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Clean the filename to prevent directory traversal attacks
 	fileID = filepath.Base(fileID)
-	fullPath := filepath.Join("uploads", fileID)
+	fullPath := filepath.Join(uploadsDir, fileID)
 
 	// Check if file exists on disk
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {

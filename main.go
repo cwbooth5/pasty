@@ -28,6 +28,12 @@ type Snippet struct {
 // Global map: snippet ID -> Snippet
 var snippets = make(map[string]Snippet)
 
+// Global paths for data storage
+var (
+	snippetsFile string
+	uploadsDir   string
+)
+
 // Templates
 var (
 	tmplIndex       *template.Template
@@ -78,9 +84,17 @@ func main() {
 	// Parse command-line flags
 	host := flag.String("host", "localhost", "Host to listen on")
 	port := flag.String("port", "3015", "Port to listen on")
+	datadir := flag.String("datadir", ".", "Directory for data files (snippets.json and uploads)")
 	flag.Parse()
 
-	loadSnippetsFromFile("snippets.json")
+	// Set up data directory paths (global variables for handlers)
+	snippetsFile = filepath.Join(*datadir, "snippets.json")
+	uploadsDir = filepath.Join(*datadir, "uploads")
+
+	// Ensure uploads directory exists
+	os.MkdirAll(uploadsDir, 0755)
+
+	loadSnippetsFromFile(snippetsFile)
 
 	tmplIndex = parseTemplate("templates/index.html")
 	tmplDisplay = parseTemplate("templates/display.html")
@@ -115,7 +129,7 @@ func setupGracefulShutdown() {
 	go func() {
 		<-sigChan
 		log.Println("Gracefully shutting down...")
-		saveSnippetsToFile("snippets.json")
+		saveSnippetsToFile(snippetsFile)
 		os.Exit(0)
 	}()
 }
@@ -199,7 +213,7 @@ func serveIndex(w http.ResponseWriter, r *http.Request) {
 
 	var fileEntries []FileEntry
 
-	entries, err := os.ReadDir("uploads")
+	entries, err := os.ReadDir(uploadsDir)
 	if err != nil {
 		log.Printf("Error reading uploads directory: %v", err)
 	} else {
@@ -247,7 +261,7 @@ func handleSave(w http.ResponseWriter, r *http.Request) {
 		BurnAfterReading: burnAfterReading,
 	}
 
-	saveSnippetsToFile("snippets.json")
+	saveSnippetsToFile(snippetsFile)
 
 	http.Redirect(w, r, "/display/"+url, http.StatusSeeOther)
 }
@@ -279,7 +293,7 @@ func displaySnippet(w http.ResponseWriter, r *http.Request) {
 	// TODO, too aggressive
 	if snippet.BurnAfterReading {
 		delete(snippets, url)
-		saveSnippetsToFile("snippets.json")
+		saveSnippetsToFile(snippetsFile)
 	}
 }
 
@@ -290,7 +304,7 @@ func deleteSnippet(w http.ResponseWriter, r *http.Request) {
 
 	delete(snippets, url)
 
-	saveSnippetsToFile("snippets.json")
+	saveSnippetsToFile(snippetsFile)
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
